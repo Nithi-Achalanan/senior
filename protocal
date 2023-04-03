@@ -1,0 +1,75 @@
+void setup() {
+  // initialize serial communication at 9600 bits per second:
+  Serial.begin(9600);
+}
+
+void loop() {
+  // check if there's any data available on the serial line:
+  if (Serial.available() >= 4) { // check for at least 4 bytes (the size of the command)
+    // read the incoming data into a buffer:
+    byte buffer[4];
+    Serial.readBytes(buffer, 4);
+
+    // check which command was received:
+
+    switch (buffer[0]) {
+      case 0x01:  //1,2,50,54 check status
+        if (buffer[1] == 2 && buffer[2] == 50 && buffer[3] == 54) {
+          onlineState();
+        }
+        break;
+
+      case 0x02: //2,1,50,44 getdata
+        if (buffer[1] == 2 && buffer[2] == 50 && buffer[3] == 44) {
+          sentHeader();
+          Serial.write(208);
+          sentTest();
+          sentTailer();
+        }
+        break;
+      // add more cases for other commands here
+      default:
+        massageError();
+        break;
+    }
+  }
+}
+
+// format of massage is 1 , 5 , 4 , 3 , len(other massage  ->), other , 1  , 1 (stop codon)
+
+// 1 , 5 , 4 , 3 header
+// len(other massage  ->), other 
+// 1 , 1  (stop codon)
+
+void massageError() {
+  int error[8] = {1,5,4,3, 1,50, 1,1}; //50 = mean massage error
+  for(int i = 0; i<8; i++){
+    Serial.write(error[i]);    
+  }
+}
+
+void onlineState() {
+  int check[8] = {1,5,4,3, 1,49, 1,1}; //49 = mean massage error
+  for(int i = 0; i<8; i++){
+    Serial.write(check[i]);  
+  }
+}
+
+void sentTailer(){
+  Serial.write(1);
+  Serial.write(1);  
+}
+
+void sentHeader() {
+  int header[4] = {1,5,4,3};
+  for(int i = 0; i<4; i++){
+    Serial.write(header[i]);    
+  }
+}
+void sentTest(){
+  int randomArray[208];
+  for (int i = 0; i < 208; i++) {
+    randomArray[i] = random(550); // generate a random number between 0 and 549
+    Serial.write(randomArray[i]);
+  }
+}
