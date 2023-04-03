@@ -80,6 +80,7 @@ void sentTest(){
   int randomArray[208];
   for (int i = 0; i < 208; i++) {
     randomArray[i] = random(550); // generate a random number between 0 and 549
-    Serial.write(randomArray[i]);
+    Serial.write(randomArray[i] >> 8);    
+    Serial.write(randomArray[i] & 0xFF);
   }
 }
