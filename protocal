@@ -13,14 +13,17 @@ void loop() {
     // check which command was received:
 
     switch (buffer[0]) {
-      case 0x01:  //1,2,50,54 check status
+      case 1:  //1,2,50,54 check status
         if (buffer[1] == 2 && buffer[2] == 50 && buffer[3] == 54) {
+          pinMode(LED_BUILTIN, OUTPUT);
           onlineState();
         }
         break;
 
       case 0x02: //2,1,50,44 getdata
         if (buffer[1] == 2 && buffer[2] == 50 && buffer[3] == 44) {
+          startGet();
+          delay(30);
           sentHeader();
           Serial.write(208);
           sentTest();
@@ -52,6 +55,13 @@ void onlineState() {
   int check[8] = {1,5,4,3, 1,49, 1,1}; //49 = mean massage error
   for(int i = 0; i<8; i++){
     Serial.write(check[i]);  
+  }
+}
+
+void startGet() {
+  int start[8] = {1,5,4,3, 1,48, 1,1}; //49 = mean massage error
+  for(int i = 0; i<8; i++){
+    Serial.write(start[i]);  
   }
 }
 
