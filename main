@@ -1,0 +1,177 @@
+from __future__ import absolute_import, division, print_function
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Button, TextBox
+from io import StringIO
+import sys
+import threading
+import serial
+
+
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_tkagg import FigureCanvasAgg
+import matplotlib
+import matplotlib.pyplot as plt
+import io
+import PIL
+import base64
+
+import pyeit.eit.bp as bp
+import pyeit.eit.protocol as protocol
+import pyeit.mesh as mesh
+from pyeit.eit.fem import EITForward
+from pyeit.mesh.shape import thorax
+from pyeit.mesh.wrapper import PyEITAnomaly_Circle
+
+import time
+import serial
+
+mutex_serial = 0; # 0 is unlock
+testdata = [0.0963256, 0.04252553, 0.02606887, 0.01617794, 0.01182591, 0.01324793, 0.01280972, 0.01317023, 0.01476507, 0.01822301, 0.02535978, 0.04202604, 0.09589174, 0.09667671, 0.04310854, 0.0231005, 0.01433458, 0.01486789, 0.01337072, 0.01272891, 0.01314231, 0.01475743, 0.01822975, 0.02540867, 0.0421382, 0.09617919, 0.0963256, 0.09796239, 0.03954376, 0.01949276, 0.01824519, 0.01516499, 0.01335062, 0.01274833, 0.01317855, 0.01481119, 0.01831146, 0.02550059, 0.042185, 0.04252553, 0.09667671, 0.09412923, 0.03127483, 0.02471696, 0.01873412, 0.01516441, 0.01338855, 0.0128105, 0.01326908, 0.01493388, 0.0184566, 0.02566992, 0.02606887, 0.04310854, 0.09796239, 0.0708782, 0.03696742, 0.0247502, 0.0182747, 0.01491202, 0.01326759, 0.01278833, 0.01332409, 0.01505373, 0.01866049, 0.01617794, 0.0231005, 0.03954376, 0.09412923, 0.07124121, 0.03148105, 0.01965635, 0.01447601, 0.01192324, 0.01075597, 0.01051902, 0.0111227, 0.01277687, 0.01182591, 0.01433458, 0.01949276, 0.03127483, 0.0708782, 0.09365436, 0.03937847, 0.02299164, 0.0160595, 0.01269228, 0.01103939, 0.01043051, 0.01066101, 0.01324793, 0.01486789, 0.01824519, 0.02471696, 0.03696742, 0.07124121, 0.09795, 0.04308765, 0.0260115, 0.01864893, 0.01503389, 0.01329814, 0.01276225, 0.01280972, 0.01337072, 0.01516499, 0.01873412, 0.0247502, 0.03148105, 0.09365436, 0.09655683, 0.04247622, 0.02569733, 0.01845751, 0.01492674, 0.01326372, 0.01317023, 0.01272891, 0.01335062, 0.01516441, 0.0182747, 0.01965635, 0.03937847, 0.09795, 0.09626904, 0.04222554, 0.02547984, 0.01829066, 0.01479898, 0.01476507, 0.01314231, 0.01274833, 0.01338855, 0.01491202, 0.01447601, 0.02299164, 0.04308765, 0.09655683, 0.09618618, 0.04210077, 0.02540291, 0.0182386, 0.01822301, 0.01475743, 0.01317855, 0.0128105, 0.01326759, 0.01192324, 0.0160595, 0.0260115, 0.04247622, 0.09626904, 0.09612782, 0.04207999, 0.02538346, 0.02535978, 0.01822975, 0.01481119, 0.01326908, 0.01278833, 0.01075597, 0.01269228, 0.01864893, 0.02569733, 0.04222554, 0.09618618, 0.09604654, 0.04204037, 0.04202604, 0.02540867, 0.01831146, 0.01493388, 0.01332409, 0.01051902, 0.01103939, 0.01503389, 0.01845751, 0.02547984, 0.04210077, 0.09612782, 0.09599504, 0.09589174, 0.0421382, 0.02550059, 0.0184566, 0.01505373, 0.0111227, 0.01043051, 0.01329814, 0.01492674, 0.01829066, 0.02540291, 0.04207999, 0.09604654, 0.09617919, 0.042185, 0.02566992, 0.01866049, 0.01277687, 0.01066101, 0.01276225, 0.01326372, 0.01479898, 0.0182386, 0.02538346, 0.04204037, 0.09599504]
+ser = serial.Serial('COM4', 9600)
+# Initialize the figure and subplots
+fig, (log_ax, ax) = plt.subplots(ncols=2, figsize=(15, 5))
+
+# Initialize the plot
+
+im = ax.imshow(np.zeros((10,10)))
+
+class LimitedStringIO(StringIO):
+    def __init__(self, limit, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.limit = limit
+        self.lines = []
+        
+    def write(self, s):
+        super().write(s)
+        self.lines.extend(s.split('\n'))
+        self.lines = self.lines[-self.limit:]
+        
+    def getvalue(self):
+        return '\n'.join(self.lines)
+
+# Set up the log box
+
+log = StringIO()
+sys.stdout = log
+text = log_ax.text(0, 0, "")
+log_ax.set(yticks=[])
+log_ax.set(xticks=[])
+
+def update_plot(event, new_data):
+    n_el = 16  # nb of electrodes
+    mesh_obj = mesh.create(n_el, h0=0.05)
+    protocol_obj = protocol.create(n_el, dist_exc=1, step_meas=1, parser_meas="std")
+    fwd = EITForward(mesh_obj, protocol_obj)
+
+    v0 = fwd.solve_eit()
+    eit = bp.BP(mesh_obj, protocol_obj)
+    eit.setup(weight="none")
+    # the normalize for BP when dist_exc>4 should always be True
+    ds = 192.0 * eit.solve(new_data, v0, normalize=True)
+    # extract node, element, alpha
+    pts = mesh_obj.node
+    tri = mesh_obj.element
+
+    # Clear the current axes
+    ax.clear()
+
+    # Plot the new data
+    im = ax.tripcolor(pts[:, 0], pts[:, 1], tri, ds)
+    ax.relim()
+    ax.autoscale_view()
+    fig.canvas.draw_idle()
+
+
+# Define the button functions
+def update_plot__(event):
+    ax.relim()
+    ax.autoscale_view()
+    fig.canvas.draw_idle()
+
+def check_status(event):
+    log.write("Checking status...\n")
+    #print("Checking status...\n")
+    text.set_text(log.getvalue())
+    ser.write(b'1') 
+    update_plot__(event)
+
+button1_ax = plt.axes([0.02, 0.75, 0.2, 0.1])
+button1 = Button(button1_ax, 'Check Status')
+button1.on_clicked(check_status)
+
+def button2_on_clicked(event): #(event,new_data)
+    #global mutex_serial = 1
+    log.write("begin reconstruction...\n")
+    text.set_text(log.getvalue())
+    update_plot__(event)
+    
+    ser.write([54,100,56,100,54])
+    checker = True
+    raw = np.zeros(208)
+    for i in range(208):
+        msb = ser.read() # Read the most significant byte
+        lsb = ser.read() # Read the least significant byte
+        data = (ord(msb) << 8) | ord(lsb) # Combine the two bytes into a single integer value
+        if i == 103:
+            log.write("recieved 50% \n")
+            text.set_text(log.getvalue())
+            update_plot__(event)
+        if -1 < int(data) < 1024:
+            raw[i] = int(data)
+        else :
+            log.write("byte corrupted occur \n")
+            checker = False
+            text.set_text(log.getvalue())
+            update_plot__(event)
+            time.sleep(1.5)
+            ser.flush()
+            
+        # Append the received data to the log
+        #log.write("Received value from serial: {}\n".format(data))
+    if checker == True:
+        #log.write(str(np.average(data) + " \n"))
+        log.write("read data successfull \n")
+        text.set_text(log.getvalue())
+        update_plot(event,np.random.uniform(0,5,208))
+    #global mutex_serial = 0
+    
+button2_ax = plt.axes([0.02, 0.55, 0.2, 0.1])
+button2 = Button(button2_ax, ' reconstruct')
+button2.on_clicked(button2_on_clicked)
+#button2.on_clicked(lambda event: button2_on_clicked(event, testdata))
+
+def button3_on_clicked(event):
+    #print("Button 3 clicked\n")
+    log.write("Button 3 clicked\n")
+    text.set_text(log.getvalue())
+    update_plot__(event)
+
+button3_ax = plt.axes([0.02, 0.35, 0.2, 0.1])
+button3 = Button(button3_ax, 'Button 3')
+button3.on_clicked(button3_on_clicked)
+
+# Move the graph to the right
+ax_pos = ax.get_position()
+ax.set_position([ax_pos.x0 + 0, ax_pos.y0, ax_pos.width, ax_pos.height])
+
+# Move the log box to the right
+log_ax_pos = log_ax.get_position()
+log_ax.set_position([log_ax_pos.x0 + 0.15, log_ax_pos.y0, log_ax_pos.width*(2/3), log_ax_pos.height])
+
+# Start a separate thread to read from serial port
+'''
+def serial_reader():
+    while mutex_serial == 0 :
+        msb = ser.read() # Read the most significant byte
+        lsb = ser.read() # Read the least significant byte
+        data = (ord(msb) << 8) | ord(lsb) # Combine the two bytes into a single integer value
+        # Append the received data to the log
+        log.write("Received value from serial: {}\n".format(data))
+        # Update the text box with the entire log
+        text.set_text(log.getvalue())
+
+serial_thread = threading.Thread(target=serial_reader, daemon=True)
+serial_thread.start()'''
+# Show the plot
+plt.show()
