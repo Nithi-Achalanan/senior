@@ -6,6 +6,7 @@ from io import StringIO
 import sys
 import threading
 import serial
+import threading
 
 
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -113,12 +114,12 @@ button2.on_clicked(button2_on_clicked)
 
 def button3_on_clicked(event):
     #print("Button 3 clicked\n")
-    log.write("Button 3 clicked\n")
+    #log.write("Button 3 clicked\n")
     text.set_text(log.getvalue())
     update_plot__(event)
 
 button3_ax = plt.axes([0.02, 0.35, 0.2, 0.1])
-button3 = Button(button3_ax, 'Button 3')
+button3 = Button(button3_ax, 'refresh')
 button3.on_clicked(button3_on_clicked)
 
 # Move the graph to the right
@@ -132,39 +133,51 @@ log_ax.set_position([log_ax_pos.x0 + 0.15, log_ax_pos.y0, log_ax_pos.width*(2/3)
 # Start a separate thread to read from serial port
 
 def serial_reader():
-    while ser.in_waiting > 0 :
+    def update_plot_2():
+        ax.relim()
+        ax.autoscale_view()
+        fig.canvas.draw_idle()
+    while True :
         header = [int(x) for x in ser.read(4)]
-            if header != [1,5,4,3]
-                time.sleep(1.5)
-                log.write("header corrupt\n")
-                text.set_text(log.getvalue())
-                update_plot__(event)
-                ser.flush()
-            else :
-                size_package = int(ser.read())
-                data = ser.read(size_package)
-                tailer = ser.read(2)
-                if size_package == 208: #อันนี้ข้อความที่ใช้
-                    
-                elif size_package == 1:
-                    if data == 50:
-                        log.write("mcu can't read command \n")
-                        text.set_text(log.getvalue())
-                        update_plot__(event)
-                    elif data == 49:
-                        log.write("device online \n")
-                        text.set_text(log.getvalue())
-                        update_plot__(event)
-                else:
-                    log.write("massage size error \n")
-                    text.set_text(log.getvalue())
-                    update_plot__(event)
-                    
+        #print(header)
+        #log.write('massage\n')
+        update_plot_2()
+        
+        if header != [1,5,4,3] :
+            time.sleep(1.5)
+            print("header corrupt\n")
+            update_plot_2()
+            ser.flush()
+        else :
+            size_package = int.from_bytes(ser.read(1), byteorder='big')
+            #print(size_package)
+            #update_plot_2()
             
+            data = int.from_bytes(ser.read(size_package), byteorder='big')
+            #print(data)
+            #update_plot_2()
+            tailer = ser.read(2)
             
-            
+            if size_package == 208: #อันนี้ข้อความที่ใช้
+                pass
+            elif size_package == 1:
+                if data == 50:
+                    log.write("mcu can't read command \n")
+                    update_plot_2()
+                elif data == 49:
+                    log.write("device online \n")
+                    #text.set_text(log.getvalue())
+                    update_plot_2()
+            else:
+                log.write("massage size error \n")
+                #text.set_text(log.getvalue())
+                update_plot_2()
+
+
 serial_thread = threading.Thread(target=serial_reader, daemon=True)
+serial_thread.priority = 4
 serial_thread.start()
+            
 # Show the plot
 plt.show()
 
