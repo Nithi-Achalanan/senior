@@ -93,7 +93,7 @@ def check_status(event):
     log.write("Checking status...\n")
     #print("Checking status...\n")
     text.set_text(log.getvalue())
-    ser.write(b'1') 
+    ser.write([1,2,50,54])
     update_plot__(event)
 
 button1_ax = plt.axes([0.02, 0.75, 0.2, 0.1])
@@ -101,13 +101,74 @@ button1 = Button(button1_ax, 'Check Status')
 button1.on_clicked(check_status)
 
 def button2_on_clicked(event): #(event,new_data)
-    #global mutex_serial = 1
     log.write("begin reconstruction...\n")
     text.set_text(log.getvalue())
     update_plot__(event)
-    
-    ser.write([54,100,56,100,54])
-    checker = True
+    ser.write([2,1,50,44])
+        
+button2_ax = plt.axes([0.02, 0.55, 0.2, 0.1])
+button2 = Button(button2_ax, ' reconstruct')
+button2.on_clicked(button2_on_clicked)
+#button2.on_clicked(lambda event: button2_on_clicked(event, testdata))
+
+def button3_on_clicked(event):
+    #print("Button 3 clicked\n")
+    log.write("Button 3 clicked\n")
+    text.set_text(log.getvalue())
+    update_plot__(event)
+
+button3_ax = plt.axes([0.02, 0.35, 0.2, 0.1])
+button3 = Button(button3_ax, 'Button 3')
+button3.on_clicked(button3_on_clicked)
+
+# Move the graph to the right
+ax_pos = ax.get_position()
+ax.set_position([ax_pos.x0 + 0, ax_pos.y0, ax_pos.width, ax_pos.height])
+
+# Move the log box to the right
+log_ax_pos = log_ax.get_position()
+log_ax.set_position([log_ax_pos.x0 + 0.15, log_ax_pos.y0, log_ax_pos.width*(2/3), log_ax_pos.height])
+
+# Start a separate thread to read from serial port
+
+def serial_reader():
+    while ser.in_waiting > 0 :
+        header = [int(x) for x in ser.read(4)]
+            if header != [1,5,4,3]
+                time.sleep(1.5)
+                log.write("header corrupt\n")
+                text.set_text(log.getvalue())
+                update_plot__(event)
+                ser.flush()
+            else :
+                size_package = int(ser.read())
+                data = ser.read(size_package)
+                tailer = ser.read(2)
+                if size_package == 208: #อันนี้ข้อความที่ใช้
+                    
+                elif size_package == 1:
+                    if data == 50:
+                        log.write("mcu can't read command \n")
+                        text.set_text(log.getvalue())
+                        update_plot__(event)
+                    elif data == 49:
+                        log.write("device online \n")
+                        text.set_text(log.getvalue())
+                        update_plot__(event)
+                else:
+                    log.write("massage size error \n")
+                    text.set_text(log.getvalue())
+                    update_plot__(event)
+                    
+            
+            
+            
+serial_thread = threading.Thread(target=serial_reader, daemon=True)
+serial_thread.start()
+# Show the plot
+plt.show()
+
+'''    checker = True
     raw = np.zeros(208)
     for i in range(208):
         msb = ser.read() # Read the most significant byte
@@ -134,44 +195,4 @@ def button2_on_clicked(event): #(event,new_data)
         log.write("read data successfull \n")
         text.set_text(log.getvalue())
         update_plot(event,np.random.uniform(0,5,208))
-    #global mutex_serial = 0
-    
-button2_ax = plt.axes([0.02, 0.55, 0.2, 0.1])
-button2 = Button(button2_ax, ' reconstruct')
-button2.on_clicked(button2_on_clicked)
-#button2.on_clicked(lambda event: button2_on_clicked(event, testdata))
-
-def button3_on_clicked(event):
-    #print("Button 3 clicked\n")
-    log.write("Button 3 clicked\n")
-    text.set_text(log.getvalue())
-    update_plot__(event)
-
-button3_ax = plt.axes([0.02, 0.35, 0.2, 0.1])
-button3 = Button(button3_ax, 'Button 3')
-button3.on_clicked(button3_on_clicked)
-
-# Move the graph to the right
-ax_pos = ax.get_position()
-ax.set_position([ax_pos.x0 + 0, ax_pos.y0, ax_pos.width, ax_pos.height])
-
-# Move the log box to the right
-log_ax_pos = log_ax.get_position()
-log_ax.set_position([log_ax_pos.x0 + 0.15, log_ax_pos.y0, log_ax_pos.width*(2/3), log_ax_pos.height])
-
-# Start a separate thread to read from serial port
-'''
-def serial_reader():
-    while mutex_serial == 0 :
-        msb = ser.read() # Read the most significant byte
-        lsb = ser.read() # Read the least significant byte
-        data = (ord(msb) << 8) | ord(lsb) # Combine the two bytes into a single integer value
-        # Append the received data to the log
-        log.write("Received value from serial: {}\n".format(data))
-        # Update the text box with the entire log
-        text.set_text(log.getvalue())
-
-serial_thread = threading.Thread(target=serial_reader, daemon=True)
-serial_thread.start()'''
-# Show the plot
-plt.show()
+    #global mutex_serial = 0'''
