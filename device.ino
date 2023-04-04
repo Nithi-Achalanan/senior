@@ -21,7 +21,7 @@ void getData(int*& PVpayload) {
       int measN2 = (injectN + 3 + UnitMeas)% 16;
       int measN1 = (injectN + 2 + UnitMeas)% 16; //N1(+)-N2(-)
       delay(2);
-      Serial.println(String(injectN)+"  " +String(measN2)+"  "+String(measN1) );
+      //Serial.println(String(injectN)+"  " +String(measN2)+"  "+String(measN1) );
 
       //change value in mux
       M_meas1.int_bina(measN1);
@@ -33,18 +33,18 @@ void getData(int*& PVpayload) {
 
       //read from
       //payload[] = analogread(A14);
-      int Write_Ser = Serial.println(analogRead(A14));
+      //int Write_Ser = Serial.println(analogRead(A14));
       PVpayload[count] = analogRead(A14) ;
-      /*
-
-      Serial.write( Write_Ser >> 8);    
-      Serial.write( Write_Ser & 0xFF);
+     // int z = analogRead(A14) ;
+/*
+      Serial.write( z >> 8);    
+      Serial.write( z & 0xFF);
       //
       */
 
       count++;
     }
-    Serial.println("");
+    //Serial.println("");
   }  
 }
 
@@ -72,19 +72,23 @@ void loop() {
 
       case 0x02: //2,1,50,44 getdata
         if (buffer[1] == 2 && buffer[2] == 50 && buffer[3] == 44) {
-          //startGet();
           int* payload {new int[208]};
           getData(payload);
-          
-          delay(30);
-          sentHeader();
+          startGet();
           Serial.write(208);
-
+          
+          
+          //delay(30);
+          //sentTest();
+          //sentHeader();
+          
           for (int i = 0; i < 208; i++) {
+            //Serial.write( i+300 >> 8);    
+            //Serial.write( i+300 & 0xFF);
             Serial.write( payload[i] >> 8);    
             Serial.write( payload[i] & 0xFF);
           }
-
+          
           sentTailer();
         }
         break;
@@ -117,10 +121,18 @@ void onlineState() {
 }
 
 void startGet() {
-  int start[8] = {1,5,4,3, 1,48, 1,1}; //48 = start reconstruction
-  for(int i = 0; i<8; i++){
+  int start[8] = {1,5,4,3}; //, 1,48, 1,1}; //48 = start reconstruction
+  for(int i = 0; i<4; i++){
     Serial.write(start[i]);  
   }
+}
+
+void blink() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH);  // turn the LED on (HIGH is the voltage level)
+  delay(1000);                      // wait for a second
+  digitalWrite(LED_BUILTIN, LOW);   // turn the LED off by making the voltage LOW
+  delay(1000);                      // wait for a second
 }
 
 void sentTailer(){
