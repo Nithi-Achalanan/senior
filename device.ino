@@ -7,7 +7,7 @@ MuxType M_meas2;
 void getData(int*& PVpayload) {
   int count = 0;
   for (int injectN = 0; injectN < 16; injectN++) {
-    int groundN = injectN + 1;
+    int groundN = (injectN + 1)%16 ;
 
     //change value in mux
     M_injector.int_bina(injectN);
@@ -17,32 +17,28 @@ void getData(int*& PVpayload) {
     M_injector.activate_();
     M_ground.activate_();
     delay(30);
-    for (int UnitMeas = 0; UnitMeas < 13; UnitMeas++) {
-      int measN2 = (injectN + 3 + UnitMeas)% 16;
-      int measN1 = (injectN + 2 + UnitMeas)% 16; //N1(+)-N2(-)
-      delay(2);
-      //Serial.println(String(injectN)+"  " +String(measN2)+"  "+String(measN1) );
+    for (int UnitMeas = 0; UnitMeas < 16  ; UnitMeas++) {
+      if (UnitMeas != (injectN -1)%16  && UnitMeas != (injectN)%16 && UnitMeas != (injectN +1)%16 && (UnitMeas + 1)%16 != injectN ){
+ 
+        int measN2 = (UnitMeas + 1)%16 ;
+        int measN1 = UnitMeas;
+        delay(2);
+        //Serial.println(String(injectN)+"  " +String(measN2)+"  "+String(measN1) );
 
-      //change value in mux
-      M_meas1.int_bina(measN1);
-      M_meas2.int_bina(measN2);
+        //change value in mux
+        M_meas1.int_bina(measN1);
+        M_meas2.int_bina(measN2);
 
-      //activate mux
-      M_meas1.activate_();
-      M_meas2.activate_();
+        //activate mux
+        M_meas1.activate_();
+        M_meas2.activate_();
 
-      //read from
-      //payload[] = analogread(A14);
-      //int Write_Ser = Serial.println(analogRead(A14));
-      PVpayload[count] = analogRead(A14) ;
-     // int z = analogRead(A14) ;
-/*
-      Serial.write( z >> 8);    
-      Serial.write( z & 0xFF);
-      //
-      */
-
-      count++;
+        //read from
+        //payload[] = analogread(A14);
+        //int Write_Ser = Serial.println(analogRead(A14));
+        PVpayload[count] = analogRead(A14) ;
+        count++;
+      }
     }
     //Serial.println("");
   }  
@@ -51,6 +47,12 @@ void getData(int*& PVpayload) {
 void setup() {
   // initialize serial communication at 9600 bits per second:
   Serial.begin(9600);
+  
+  M_injector.SetPin(30,31,32,33);
+  M_ground.SetPin(36,37,38,39);
+  M_meas1.SetPin(42,43,44,45);
+  M_meas2.SetPin(48,49,50,51);
+
 }
 
 void loop() {
@@ -154,4 +156,3 @@ void sentTest(){
     Serial.write(randomArray[i] & 0xFF);
   }
 }
-
